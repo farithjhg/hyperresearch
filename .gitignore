@@ -26,6 +26,13 @@ CLAUDE.md
 AGENTS.md
 GEMINI.md
 
+# ...except the repo's own CLAUDE.md, which is hand-written guidance for
+# Claude Code sessions working ON hyperresearch (not a generated install
+# output). If you run `hyperresearch install .` inside this checkout, it
+# injects a <!-- hyperresearch:start --> block carrying an absolute path
+# to your hpr executable — don't stage that block.
+!/CLAUDE.md
+
 # Per-vault research output
 research/
 
