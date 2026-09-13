@@ -16,6 +16,44 @@ agent. It ships two things that must be kept in sync:
 Editing a prompt is a code change here: the prompts are Jinja templates, they are golden-tested,
 and they reference CLI commands that must exist.
 
+## How the harness is driven
+
+End users never call the pipeline through the CLI. They install it into their own project and
+then talk to it as a Claude Code slash command:
+
+```bash
+pip install hyperresearch && hyperresearch install    # per-project: vault + CLAUDE.md + entry skill + 16 step skills + agents
+hyperresearch install --global                        # ~/.claude/ entry skill + agents only; step skills install lazily per project
+```
+
+Then `/hyperresearch <anything>` in Claude Code.
+
+That slash command loads `src/hyperresearch/skills/hyperresearch.md`, which is a **thin router, not a
+procedure**. It bootstraps (installs step skills via `hyperresearch install --steps-only .` if
+missing, pins the verbatim query, mints a tag with `hyperresearch vault-tag <slug> -j`, opens a run
+with `hyperresearch run init`), then invokes one step skill per phase through the `Skill` tool.
+Each step's procedure loads into context only when that step runs — that decomposition is the fix
+for the V7 failure where a single 1200-line skill got compacted away mid-pipeline and silently
+dropped steps.
+
+Three orthogonal dials, easy to confuse:
+
+- **Tier** — which steps run. `light` (1→2→10→15→16) / `full` (all 16) / `dissertation` (chaptered,
+  opt-in). Step 1 classifies it from the query.
+- **Gear** — the scale of those steps, i.e. which profile's numbers get rendered into the prompts.
+  Persisted per project by `hyperresearch profile use <name>`, so changing a gear means reinstalling
+  the rendered skills.
+- **Levers** — the register/voice of the report (`core/levers.py`), chosen per run and delivered as
+  shim files, not baked in at install time.
+
+Two invariants the prompts are built around, worth preserving in any prompt edit:
+
+1. **Patch, never regenerate.** After synthesis, steps 14–16 are tool-locked to `[Read, Edit]` at the
+   Claude Code allowlist level, with per-hunk caps. They cannot Write a new draft.
+2. **The canonical query is gospel.** The verbatim user prompt is persisted once to
+   `research/runs/<vault_tag>/query.md` and re-read by every later step and spawned subagent;
+   the `scaffold-prompt` lint blocks a scaffold that doesn't open with it.
+
 ## Commands
 
 ```bash
